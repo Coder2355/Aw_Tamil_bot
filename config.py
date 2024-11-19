@@ -7,7 +7,7 @@ class Config(object):
     # pyro client config
     API_ID    = os.environ.get("API_ID", "21740783")
     API_HASH  = os.environ.get("API_HASH", "a5dc7fec8302615f5b441ec5e238cd46")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7444872585:AAHYzPX_gygFh9xYvu0-k7YOUg7BSG_hzHg") 
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7766709030:AAHsGisTBrmdF1G1jaXv1egIMIqe_UXRSxY") 
    
     # database config
     DB_NAME = os.environ.get("DB_NAME","boyrokey00")     
@@ -19,8 +19,8 @@ class Config(object):
     ADMIN = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '6299192020').split()]
 
     # channels logs
-    FORCE_SUB   = os.environ.get("FORCE_SUB", "ATXBOTS") 
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002149238052"))
+    FORCE_SUB   = os.environ.get("FORCE_SUB", None) 
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", None))
 
     # wes response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", True))
