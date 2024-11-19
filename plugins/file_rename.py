@@ -162,12 +162,11 @@ async def rename_start(client, message):
     except:
         pass
 
+    user_details["filename"] = filename
 
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
-    file = getattr(message, message.media.value)
-    filename = file.file_name  
     reply_message = message.reply_to_message
     if (reply_message.reply_markup) and isinstance(reply_message.reply_markup, ForceReply):
         new_name = message.text 
@@ -192,8 +191,7 @@ async def refunc(client, message):
             text=f"**Select The Output File Type**\n\n**File Name :-** `{new_name}`",
             reply_to_message_id=file.id,
             reply_markup=InlineKeyboardMarkup(button)
-        )
-    user_details["filename"] = filename
+	)
 
 
 @Client.on_callback_query(filters.regex("upload"))
