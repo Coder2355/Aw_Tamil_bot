@@ -219,7 +219,7 @@ async def doc(bot, update):
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
     file = update.message.reply_to_message
-    data = f" {custom_name} -S01 - {episode} - {quality} Tamil "
+    data = f" New Animes -S01 - {episode} - {quality} Tamil "
 
     ms = await update.message.edit(data, "🚀 Try To Download...  ⚡")    
     try:
