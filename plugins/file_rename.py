@@ -9,10 +9,136 @@ from helper.utils import progress_for_pyrogram, convert, humanbytes, add_prefix_
 from helper.database import jishubotz
 from asyncio import sleep
 from PIL import Image
+from config import Config
 import os, time, re, random, asyncio
 
 
-@Client.on_message(filters.private & (filters.document | filters.audio | filters.video))
+user_details = {}
+
+        
+# Pattern 1: S01E02 or S01EP02
+pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
+# Pattern 2: S01 E02 or S01 EP02 or S01 - E01 or S01 - EP02
+pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
+# Pattern 3: Episode Number After "E" or "EP"
+pattern3 = re.compile(r'(?:[([<{]?\s*(?:E|EP)\s*(\d+)\s*[)\]>}]?)')
+# Pattern 3_2: episode number after - [hyphen]
+pattern3_2 = re.compile(r'(?:\s*-\s*(\d+)\s*)')
+# Pattern 4: S2 09 ex.
+pattern4 = re.compile(r'S(\d+)[^\d]*(\d+)', re.IGNORECASE)
+# Pattern X: Standalone Episode Number
+patternX = re.compile(r'(\d+)')
+#QUALITY PATTERNS 
+# Pattern 5: 3-4 digits before 'p' as quality
+pattern5 = re.compile(r'\b(?:.*?(\d{3,4}[^\dp]*p).*?|.*?(\d{3,4}p))\b', re.IGNORECASE)
+# Pattern 6: Find 4k in brackets or parentheses
+pattern6 = re.compile(r'[([<{]?\s*4k\s*[)\]>}]?', re.IGNORECASE)
+# Pattern 7: Find 2k in brackets or parentheses
+pattern7 = re.compile(r'[([<{]?\s*2k\s*[)\]>}]?', re.IGNORECASE)
+# Pattern 8: Find HdRip without spaces
+pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
+# Pattern 9: Find 4kX264 in brackets or parentheses
+pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
+# Pattern 10: Find 4kx265 in brackets or parentheses
+pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
+
+def extract_quality(filename):
+    # Try Quality Patterns
+    match5 = re.search(pattern5, filename)
+    if match5:
+        print("Matched Pattern 5")
+        quality5 = match5.group(1) or match5.group(2)  # Extracted quality from both patterns
+        print(f"Quality: {quality5}")
+        return quality5
+
+    match6 = re.search(pattern6, filename)
+    if match6:
+        print("Matched Pattern 6")
+        quality6 = "4k"
+        print(f"Quality: {quality6}")
+        return quality6
+
+    match7 = re.search(pattern7, filename)
+    if match7:
+        print("Matched Pattern 7")
+        quality7 = "2k"
+        print(f"Quality: {quality7}")
+        return quality7
+
+    match8 = re.search(pattern8, filename)
+    if match8:
+        print("Matched Pattern 8")
+        quality8 = "HdRip"
+        print(f"Quality: {quality8}")
+        return quality8
+
+    match9 = re.search(pattern9, filename)
+    if match9:
+        print("Matched Pattern 9")
+        quality9 = "4kX264"
+        print(f"Quality: {quality9}")
+        return quality9
+
+    match10 = re.search(pattern10, filename)
+    if match10:
+        print("Matched Pattern 10")
+        quality10 = "4kx265"
+        print(f"Quality: {quality10}")
+        return quality10    
+
+    # Return "Unknown" if no pattern matches
+    unknown_quality = "Unknown"
+    print(f"Quality: {unknown_quality}")
+    return unknown_quality
+    
+
+def extract_episode_number(filename):    
+    # Try Pattern 1
+    match = re.search(pattern1, filename)
+    if match:
+        print("Matched Pattern 1")
+        return match.group(2)  # Extracted episode number
+    
+    # Try Pattern 2
+    match = re.search(pattern2, filename)
+    if match:
+        print("Matched Pattern 2")
+        return match.group(2)  # Extracted episode number
+
+    # Try Pattern 3
+    match = re.search(pattern3, filename)
+    if match:
+        print("Matched Pattern 3")
+        return match.group(1)  # Extracted episode number
+
+    # Try Pattern 3_2
+    match = re.search(pattern3_2, filename)
+    if match:
+        print("Matched Pattern 3_2")
+        return match.group(1)  # Extracted episode number
+        
+    # Try Pattern 4
+    match = re.search(pattern4, filename)
+    if match:
+        print("Matched Pattern 4")
+        return match.group(2)  # Extracted episode number
+
+    # Try Pattern X
+    match = re.search(patternX, filename)
+    if match:
+        print("Matched Pattern X")
+        return match.group(1)  # Extracted episode number
+        
+    # Return None if no pattern matches
+    return None
+
+# Example Usage:
+filename = "Naruto Shippuden S01 - EP07 - 1080p [Dual Audio] @Madflix_Bots.mkv"
+episode_number = extract_episode_number(filename)
+print(f"Extracted Episode Number: {episode_number}")
+
+
+@Client.on_message(filters.private & (filters.document | filters.audio | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name  
@@ -40,6 +166,8 @@ async def rename_start(client, message):
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
+    file = getattr(message, message.media.value)
+    filename = file.file_name  
     reply_message = message.reply_to_message
     if (reply_message.reply_markup) and isinstance(reply_message.reply_markup, ForceReply):
         new_name = message.text 
@@ -65,11 +193,15 @@ async def refunc(client, message):
             reply_to_message_id=file.id,
             reply_markup=InlineKeyboardMarkup(button)
         )
-
+    user_details["filename"] = filename
 
 
 @Client.on_callback_query(filters.regex("upload"))
-async def doc(bot, update):    
+async def doc(bot, update):  
+    filename = user_details["filename"]
+    episode = extract_episode_number(filename)
+    quality = extract_quality(filename)
+	
     # Creating Directory for Metadata
     if not os.path.isdir("Metadata"):
         os.mkdir("Metadata")
@@ -87,8 +219,9 @@ async def doc(bot, update):
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
     file = update.message.reply_to_message
+    data = f" {custom_name} -S01 - {episode} - {quality} Tamil "
 
-    ms = await update.message.edit("🚀 Try To Download...  ⚡")    
+    ms = await update.message.edit(data, "🚀 Try To Download...  ⚡")    
     try:
      	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=("🚀 Try To Downloading...  ⚡", ms, time.time()))                    
     except Exception as e:
