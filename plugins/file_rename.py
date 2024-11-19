@@ -219,7 +219,7 @@ async def doc(bot, update):
     file = update.message.reply_to_message
     data = f" New Animes -S01 - {episode} - {quality} Tamil "
 
-    ms = await update.message.edit(data, "🚀 Try To Download...  ⚡")    
+    ms = await update.message.edit(text=data + "🚀 Try To Download... ⚡")
     try:
      	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=("🚀 Try To Downloading...  ⚡", ms, time.time()))                    
     except Exception as e:
