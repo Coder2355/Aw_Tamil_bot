@@ -143,27 +143,22 @@ async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name  
     if file.file_size > 2000 * 1024 * 1024:
-         return await message.reply_text("Sorry Bro This Bot Doesn't Support Uploading Files Bigger Than 2GB")
+        return await message.reply_text("Sorry, this bot doesn't support files larger than 2GB.")
+
+    user_id = message.chat.id
+    user_details[user_id] = {"filename": filename}
 
     try:
         await message.reply_text(
-            text=f"**Please Enter New Filename...**\n\n**Old File Name** :- `{filename}`",
-	    reply_to_message_id=message.id,  
-	    reply_markup=ForceReply(True)
+            text=f"**Please Enter New Filename...**\n\n**Old File Name:** `{filename}`",
+            reply_to_message_id=message.id,  
+            reply_markup=ForceReply(True)
         )       
         await sleep(30)
     except FloodWait as e:
         await sleep(e.value)
-        await message.reply_text(
-            text=f"**Please Enter New Filename**\n\n**Old File Name** :- `{filename}`",
-	    reply_to_message_id=message.id,  
-	    reply_markup=ForceReply(True)
-        )
     except:
         pass
-
-    user_details["filename"] = filename
-
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
@@ -196,7 +191,12 @@ async def refunc(client, message):
 
 @Client.on_callback_query(filters.regex("upload"))
 async def doc(bot, update):  
-    filename = user_details["filename"]
+    user_id = update.message.chat.id
+    user_data = user_details.get(user_id)
+    if not user_data or "filename" not in user_data:
+        return await update.message.edit("Filename not found. Please restart the process.")
+
+    filename = user_data["filename"]
     episode = extract_episode_number(filename)
     quality = extract_quality(filename)
 	
