@@ -172,15 +172,15 @@ print(f"Extracted Episode Number: {episode_number}")
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name
-    file_id = file.file_id
+    user_id = message.chat.id
+    
+    user_details[user_id] = {"filename": filename}
+
     
     if file.file_size > 2000 * 1024 * 1024:
         return await message.reply_text("Sorry, this bot doesn't support files larger than 2GB.")
 
-    user_id = message.chat.id
     
-    user_details[user_id] = {"filename": filename, "file_id": file_id}
-
     try:
         await message.reply_text(
             text=f"**Please Enter New Filename...**\n\n**Old File Name:** `{filename}`",
@@ -220,6 +220,9 @@ async def refunc(client, message):
             reply_to_message_id=file.id,
             reply_markup=InlineKeyboardMarkup(button)
 	)
+    user_id = message.chat.id
+    
+    user_details[user_id] = {"file_data": reply_to_message_id}
 
 
 @Client.on_callback_query(filters.regex("upload"))
@@ -227,11 +230,11 @@ async def doc(client, update):
     global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
-    if not user_data or "filename" not in user_data or "file_id" not in user_data:
-        return await query.message.edit("❌ Error: Missing file information. Please restart the process.")
+    if not user_data or "filename" not in user_data or "file_data" not in user_data:
+        return await update.message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
-    file_id = user_data["file_id"]
+    file_data = user_data["file_data"]
     episode = extract_episode_number(filename)
     quality = extract_quality(filename)
 	
