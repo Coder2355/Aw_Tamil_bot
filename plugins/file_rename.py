@@ -220,7 +220,7 @@ async def refunc(client, message):
 
 
 @Client.on_callback_query(filters.regex("upload"))
-async def doc(bot, update):  
+async def doc(client, update):  
     global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
