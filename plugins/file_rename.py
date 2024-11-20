@@ -332,7 +332,7 @@ async def doc(bot, update):
 
         elif type == "audio": 
             await bot.send_audio(
-                chat_id=TARGET_CHANNEL_ID,,
+                chat_id=TARGET_CHANNEL_ID,
                 audio=metadata_path if _bool_metadata else file_path,
                 caption=caption,
                 thumb=ph_path,
