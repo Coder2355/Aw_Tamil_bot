@@ -254,7 +254,7 @@ async def doc(bot, update):
         await message.reply("**Error:** Target channel not set. Use /set_target to set the channel.")
         return
 
-    ms = await update.message.edit(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
+    ms = await bot.update.message.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
     try:
      	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
     except Exception as e:
