@@ -168,121 +168,195 @@ episode_number = extract_episode_number(filename)
 print(f"Extracted Episode Number: {episode_number}")
 
 
-
-# Handle File Upload and Rename
-@Client.on_message(filters.private & (filters.document | filters.video) & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & (filters.document | filters.audio | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
-    filename = file.file_name
-
+    filename = file.file_name  
     if file.file_size > 2000 * 1024 * 1024:
-        return await message.reply_text("❌ Sorry, this bot doesn't support files larger than 2GB.")
+        return await message.reply_text("Sorry, this bot doesn't support files larger than 2GB.")
 
     user_id = message.chat.id
-    user_details[user_id] = {"filename": filename, "file_id": file.file_id}
+    user_details[user_id] = {"filename": filename}
 
     try:
         await message.reply_text(
             text=f"**Please Enter New Filename...**\n\n**Old File Name:** `{filename}`",
-            reply_to_message_id=message.id,
+            reply_to_message_id=message.id,  
             reply_markup=ForceReply(True)
-        )
-    except Exception as e:
-        await message.reply_text(f"❌ Error: {str(e)}")
+        )       
+        await sleep(30)
+    except FloodWait as e:
+        await sleep(e.value)
+    except:
+        pass
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
     reply_message = message.reply_to_message
-    if reply_message.reply_markup and isinstance(reply_message.reply_markup, ForceReply):
-        user_id = message.chat.id
-        new_name = message.text
-
+    if (reply_message.reply_markup) and isinstance(reply_message.reply_markup, ForceReply):
+        new_name = message.text 
+        await message.delete() 
+        msg = await client.get_messages(message.chat.id, reply_message.id)
+        file = msg.reply_to_message
+        media = getattr(file, file.media.value)
         if not "." in new_name:
-            ext = os.path.splitext(user_details[user_id]["filename"])[-1]
-            new_name = new_name + ext
-
-        user_details[user_id]["new_name"] = new_name
+            if "." in media.file_name:
+                extn = media.file_name.rsplit('.', 1)[-1]
+            else:
+                extn = "mkv"
+            new_name = new_name + "." + extn
         await reply_message.delete()
 
-        buttons = [
-            [InlineKeyboardButton("📁 Document", callback_data="upload_document")],
-            [InlineKeyboardButton("🎥 Video", callback_data="upload_video")]
-        ]
+        button = [[InlineKeyboardButton("📁 Document",callback_data = "upload_document")]]
+        if file.media in [MessageMediaType.VIDEO, MessageMediaType.DOCUMENT]:
+            button.append([InlineKeyboardButton("🎥 Video", callback_data = "upload_video")])
+        elif file.media == MessageMediaType.AUDIO:
+            button.append([InlineKeyboardButton("🎵 Audio", callback_data = "upload_audio")])
         await message.reply(
-            text=f"**Select the Output File Type**\n\n**File Name:** `{new_name}`",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
+            text=f"**Select The Output File Type**\n\n**File Name :-** `{new_name}`",
+            reply_to_message_id=file.id,
+            reply_markup=InlineKeyboardMarkup(button)
+	)
+
 
 @Client.on_callback_query(filters.regex("upload"))
-async def upload_file(client, query):
-    global TARGET_CHANNEL_ID
-
-    user_id = query.message.chat.id
+async def doc(client, update):  
+    global TARGET_CHANNEL_ID, custom_name
+    user_id = update.message.chat.id
     user_data = user_details.get(user_id)
+    if not user_data or "filename" not in user_data:
+        return await update.message.edit("Filename not found. Please restart the process.")
 
-    if not user_data or "filename" not in user_data or "file_id" not in user_data:
-        return await query.message.edit("❌ Error: Missing file information. Please restart the process.")
-
-    old_filename = user_data["filename"]
-    new_filename = user_data.get("new_name", old_filename)
-    file_id = user_data["file_id"]
-    file_path = f"downloads/{user_id}/{new_filename}"
-
-    # Notify Target Channel
-    if not TARGET_CHANNEL_ID:
-        return await query.message.edit("❌ Error: Target channel not set. Use `/set_target` to set the channel.")
-
-    target_msg = await client.send_message(
-        chat_id=TARGET_CHANNEL_ID,
-        text=f"⬇️ **Starting download...**\n\n📁 **Filename:** `{new_filename}`"
-    )
-
-    # Retry Logic for Downloading
-    for attempt in range(3):  # Retry up to 3 times
-        try:
-            start_time = time.time()
-            downloaded_path = await client.download_media(
-                file_id,
-                file_name=file_path,
-                progress=progress_for_pyrogram,
-                progress_args=("⬇️ **Downloading...**", target_msg, start_time)
-            )
-            # Verify File Size
-            if os.path.exists(downloaded_path) and os.path.getsize(downloaded_path) == user_data["file_size"]:
-                break  # Exit retry loop if successful
-        except Exception as e:
-            if attempt == 2:  # Final attempt failed
-                return await target_msg.edit(f"❌ Download failed: `{str(e)}`")
-            await target_msg.edit(f"⚠️ Retrying download ({attempt + 1}/3)...")
-
-    # Notify Completion
-    await target_msg.edit("✅ **Download complete! Proceeding to upload...**")
-
-    # Upload File
-    await query.message.edit("⬆️ **Uploading file...**")
-    upload_type = query.data.split("_")[1]
+    filename = user_data["filename"]
+    episode = extract_episode_number(filename)
+    quality = extract_quality(filename)
+	
+    # Creating Directory for Metadata
+    if not os.path.isdir("Metadata"):
+        os.mkdir("Metadata")
+        
+    # Extracting necessary information    
+    prefix = await jishubotz.get_prefix(update.message.chat.id)
+    suffix = await jishubotz.get_suffix(update.message.chat.id)
+    new_name = update.message.text
+    new_filename_ = new_name.split(":-")[1]
 
     try:
-        if upload_type == "document":
-            await client.send_document(
-                chat_id=TARGET_CHANNEL_ID,
-                document=downloaded_path,
-                caption=f"**{new_filename}**",
-                progress=progress_for_pyrogram,
-                progress_args=("⬆️ **Uploading...**", target_msg, start_time)
-            )
-        elif upload_type == "video":
-            await client.send_video(
-                chat_id=TARGET_CHANNEL_ID,
-                video=downloaded_path,
-                caption=f"**{new_filename}**",
-                progress=progress_for_pyrogram,
-                progress_args=("⬆️ **Uploading...**", target_msg, start_time)
-            )
+        new_filename = add_prefix_suffix(new_filename_, prefix, suffix)
     except Exception as e:
-        await target_msg.edit(f"❌ Upload failed: `{str(e)}`")
+        return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
+    
+    file_path = f"downloads/{update.from_user.id}/{new_filename}"
+    file = update.message.reply_to_message
+    data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
+
+    if not TARGET_CHANNEL_ID:
+        await message.reply("**Error:** Target channel not set. Use /set_target to set the channel.")
+        return
+
+    ms = await client.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
+    try:
+     	path = await client.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
+    except Exception as e:
+     	return await ms.edit(e)
+    
+
+    # Metadata Adding Code
+    _bool_metadata = await jishubotz.get_metadata(update.message.chat.id) 
+    
+    if _bool_metadata:
+        metadata = await jishubotz.get_metadata_code(update.message.chat.id)
+        metadata_path = f"Metadata/{new_filename}"
+        await add_metadata(path, metadata_path, metadata, ms)
     else:
-        await target_msg.edit("✅ **Upload complete!**")
-    finally:
-        if os.path.exists(downloaded_path):
-            os.remove(downloaded_path)
+        await ms.edit("⏳ Mode Changing...  ⚡")
+
+    duration = 0
+    try:
+        parser = createParser(file_path)
+        metadata = extractMetadata(parser)
+        if metadata.has("duration"):
+           duration = metadata.get('duration').seconds
+        parser.close()   
+    except:
+        pass
+        
+    ph_path = None
+    user_id = int(update.message.chat.id) 
+    media = getattr(file, file.media.value)
+    c_caption = await jishubotz.get_caption(update.message.chat.id)
+    c_thumb = await jishubotz.get_thumbnail(update.message.chat.id)
+
+    if c_caption:
+         try:
+             caption = c_caption.format(filename=new_filename, filesize=humanbytes(media.file_size), duration=convert(duration))
+         except Exception as e:
+             return await ms.edit(text=f"Your Caption Error Except Keyword Argument: ({e})")             
+    else:
+         caption = f"**{new_filename}**"
+ 
+    if (media.thumbs or c_thumb):
+         if c_thumb:
+             ph_path = await bot.download_media(c_thumb)
+             width, height, ph_path = await fix_thumb(ph_path)
+         else:
+             try:
+                 ph_path_ = await take_screen_shot(file_path, os.path.dirname(os.path.abspath(file_path)), random.randint(0, duration - 1))
+                 width, height, ph_path = await fix_thumb(ph_path_)
+             except Exception as e:
+                 ph_path = None
+                 print(e)  
+
+
+    await ms.edit("💠 Try To Upload...  ⚡")
+    type = update.data.split("_")[1]
+    try:
+        if type == "document":
+            await bot.send_document(
+                chat_id=TARGET_CHANNEL_ID,
+                document=metadata_path if _bool_metadata else file_path,
+                thumb=ph_path, 
+                caption=caption, 
+                progress=progress_for_pyrogram,
+                progress_args=("💠 Try To Uploading...  ⚡", ms, time.time()))
+
+        elif type == "video": 
+            await bot.send_video(
+                chat_id=TARGET_CHANNEL_ID,
+                video=metadata_path if _bool_metadata else file_path,
+                caption=caption,
+                thumb=ph_path,
+                duration=duration,
+                progress=progress_for_pyrogram,
+                progress_args=("💠 Try To Uploading...  ⚡", ms, time.time()))
+
+        elif type == "audio": 
+            await bot.send_audio(
+                chat_id=TARGET_CHANNEL_ID,
+                audio=metadata_path if _bool_metadata else file_path,
+                caption=caption,
+                thumb=ph_path,
+                duration=duration,
+                progress=progress_for_pyrogram,
+                progress_args=("💠 Try To Uploading...  ⚡", ms, time.time()))
+
+
+    except Exception as e:          
+        os.remove(file_path)
+        if ph_path:
+            os.remove(ph_path)
+        return await ms.edit(f"**Error :** `{e}`")    
+ 
+    await ms.delete() 
+    if ph_path:
+        os.remove(ph_path)
+    if file_path:
+        os.remove(file_path)
+
+
+
+
+# Jishu Developer 
+# Don't Remove Credit 🥺
+# Telegram Channel @JishuBotz
+# Developer @JishuDeveloper
