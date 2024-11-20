@@ -46,7 +46,7 @@ pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
 
 
-@Client.on_message(filters.command("set_target") & filters.user(ADMINS))
+@Client.on_message(filters.command("set_target") & filters.user(Config.ADMIN))
 async def set_target_channel(client: Client, message: Message):
     global TARGET_CHANNEL_ID
 
@@ -62,7 +62,7 @@ async def set_target_channel(client: Client, message: Message):
         await message.reply("Please provide a channel ID after the command. Example: /set_target 123456789")
 
 
-@Client.on_message(filters.command("set_name") & filters.user(ADMINS))
+@Client.on_message(filters.command("set_name") & filters.user(Config.ADMIN))
 async def set_name(client: Client, message: Message):
     global custom_name
 
