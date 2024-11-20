@@ -256,7 +256,7 @@ async def doc(bot, update):
 
     ms = await bot.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
     try:
-     	path = await bot.download_media(message=file, file_name=file_path, text=data, progress=progress_for_pyrogram,progress_args=("🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
+     	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
     except Exception as e:
      	return await ms.edit(e)
     
