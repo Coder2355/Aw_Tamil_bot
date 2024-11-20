@@ -15,6 +15,9 @@ import os, time, re, random, asyncio
 
 user_details = {}
 
+TARGET_CHANNEL_ID = None
+
+custom_name = ""
         
 # Pattern 1: S01E02 or S01EP02
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
@@ -41,6 +44,33 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 # Pattern 10: Find 4kx265 in brackets or parentheses
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
+
+
+@Client.on_message(filters.command("set_target") & filters.user(ADMINS))
+async def set_target_channel(client: Client, message: Message):
+    global TARGET_CHANNEL_ID
+
+    # Extract channel ID from the message
+    if len(message.command) > 1:
+        channel_id = message.command[1]
+        try:
+            TARGET_CHANNEL_ID = int(channel_id)
+            await message.reply("Target channel added successfully ✅")
+        except ValueError:
+            await message.reply("Invalid channel ID. Please provide a valid channel ID.")
+    else:
+        await message.reply("Please provide a channel ID after the command. Example: /set_target 123456789")
+
+
+@Client.on_message(filters.command("set_name") & filters.user(ADMINS))
+async def set_name(client: Client, message: Message):
+    global custom_name
+
+    if len(message.command) > 1:
+        custom_name = " ".join(message.command[1:])
+        await message.reply(f"Name added successfully ✅\nThe name was set to: {custom_name}")
+    else:
+        await message.reply("Please provide a name after the command. Example: /set_name MyCustomName")
 
 def extract_quality(filename):
     # Try Quality Patterns
@@ -191,6 +221,7 @@ async def refunc(client, message):
 
 @Client.on_callback_query(filters.regex("upload"))
 async def doc(bot, update):  
+    global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
     if not user_data or "filename" not in user_data:
@@ -217,11 +248,15 @@ async def doc(bot, update):
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
     file = update.message.reply_to_message
-    data = f" New Animes -S01 - {episode} - {quality} Tamil "
+    data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
-    ms = await update.message.edit(text=data + "🚀 Try To Download... ⚡")
+    if not TARGET_CHANNEL_ID:
+        await message.reply("**Error:** Target channel not set. Use /set_target to set the channel.")
+        return
+
+    ms = await bot.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start downloading From the Website ⚡")
     try:
-     	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=("🚀 Try To Downloading...  ⚡", ms, time.time()))                    
+     	path = await bot.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(text=data + "🚀 Start downloading From the Website ⚡", ms, time.time()))                    
     except Exception as e:
      	return await ms.edit(e)
     
@@ -278,7 +313,7 @@ async def doc(bot, update):
     try:
         if type == "document":
             await bot.send_document(
-                update.message.chat.id,
+                chat_id=TARGET_CHANNEL_ID,
                 document=metadata_path if _bool_metadata else file_path,
                 thumb=ph_path, 
                 caption=caption, 
@@ -287,7 +322,7 @@ async def doc(bot, update):
 
         elif type == "video": 
             await bot.send_video(
-                update.message.chat.id,
+                chat_id=TARGET_CHANNEL_ID,
                 video=metadata_path if _bool_metadata else file_path,
                 caption=caption,
                 thumb=ph_path,
@@ -297,7 +332,7 @@ async def doc(bot, update):
 
         elif type == "audio": 
             await bot.send_audio(
-                update.message.chat.id,
+                chat_id=TARGET_CHANNEL_ID,,
                 audio=metadata_path if _bool_metadata else file_path,
                 caption=caption,
                 thumb=ph_path,
