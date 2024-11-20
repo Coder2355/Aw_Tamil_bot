@@ -171,12 +171,16 @@ print(f"Extracted Episode Number: {episode_number}")
 @Client.on_message(filters.private & (filters.document | filters.audio | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
-    filename = file.file_name  
+    filename = file.file_name
+    file_id = file.id
+    file_info = await client.get_file(file_id)
+    total_size = file_info.file_size
     if file.file_size > 2000 * 1024 * 1024:
         return await message.reply_text("Sorry, this bot doesn't support files larger than 2GB.")
 
     user_id = message.chat.id
-    user_details[user_id] = {"filename": filename}
+    
+    user_details[user_id] = {"filename": filename, "file_id": file.id}
 
     try:
         await message.reply_text(
@@ -224,10 +228,11 @@ async def doc(client, update):
     global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
-    if not user_data or "filename" not in user_data:
-        return await update.message.edit("Filename not found. Please restart the process.")
+    if not user_data or "filename" not in user_data or "file_id" not in user_data:
+        return await query.message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
+    file_id = user_data["file_id"]
     episode = extract_episode_number(filename)
     quality = extract_quality(filename)
 	
@@ -256,7 +261,7 @@ async def doc(client, update):
 
     ms = await client.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
     try:
-     	path = await client.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
+     	path = await client.download_media(file_id, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
     except Exception as e:
      	return await ms.edit(e)
     
