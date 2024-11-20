@@ -47,7 +47,7 @@ pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
 
 
 @Client.on_message(filters.command("set_target") & filters.user(Config.ADMIN))
-async def set_target_channel(client: Client, message: Message):
+async def set_target_channel(client , message):
     global TARGET_CHANNEL_ID
 
     # Extract channel ID from the message
@@ -63,7 +63,7 @@ async def set_target_channel(client: Client, message: Message):
 
 
 @Client.on_message(filters.command("set_name") & filters.user(Config.ADMIN))
-async def set_name(client: Client, message: Message):
+async def set_name(client, message):
     global custom_name
 
     if len(message.command) > 1:
