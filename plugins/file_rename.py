@@ -172,7 +172,7 @@ print(f"Extracted Episode Number: {episode_number}")
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name
-    file_id = file.id
+    file_id = file.file_id
     file_info = await client.get_file(file_id)
     total_size = file_info.file_size
     if file.file_size > 2000 * 1024 * 1024:
@@ -180,7 +180,7 @@ async def rename_start(client, message):
 
     user_id = message.chat.id
     
-    user_details[user_id] = {"filename": filename, "file_id": file.id}
+    user_details[user_id] = {"filename": filename, "file_id": file_id}
 
     try:
         await message.reply_text(
