@@ -168,61 +168,49 @@ episode_number = extract_episode_number(filename)
 print(f"Extracted Episode Number: {episode_number}")
 
 
-@Client.on_message(filters.private & (filters.document | filters.audio | filters.video) & filters.user(Config.ADMIN))
+
+@Client.on_message(filters.private & (filters.document | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name
-    user_id = message.chat.id
-    
-    user_details[user_id] = {"filename": filename}
 
-    
     if file.file_size > 2000 * 1024 * 1024:
-        return await message.reply_text("Sorry, this bot doesn't support files larger than 2GB.")
+        return await message.reply_text("❌ Sorry, this bot doesn't support files larger than 2GB.")
 
-    
+    user_id = message.chat.id
+    user_details[user_id] = {"filename": filename, "file_id": file.file_id}
+
     try:
         await message.reply_text(
             text=f"**Please Enter New Filename...**\n\n**Old File Name:** `{filename}`",
-            reply_to_message_id=message.id,  
+            reply_to_message_id=message.id,
             reply_markup=ForceReply(True)
-        )       
-        await sleep(30)
-    except FloodWait as e:
-        await sleep(e.value)
-    except:
-        pass
+        )
+    except Exception as e:
+        await message.reply_text(f"❌ Error: {str(e)}")
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
     reply_message = message.reply_to_message
-    if (reply_message.reply_markup) and isinstance(reply_message.reply_markup, ForceReply):
-        new_name = message.text 
-        await message.delete() 
-        msg = await client.get_messages(message.chat.id, reply_message.id)
-        file = msg.reply_to_message
-        media = getattr(file, file.media.value)
+    if reply_message.reply_markup and isinstance(reply_message.reply_markup, ForceReply):
+        user_id = message.chat.id
+        new_name = message.text
+
         if not "." in new_name:
-            if "." in media.file_name:
-                extn = media.file_name.rsplit('.', 1)[-1]
-            else:
-                extn = "mkv"
-            new_name = new_name + "." + extn
+            ext = os.path.splitext(user_details[user_id]["filename"])[-1]
+            new_name = new_name + ext
+
+        user_details[user_id]["new_name"] = new_name
         await reply_message.delete()
 
-        button = [[InlineKeyboardButton("📁 Document",callback_data = "upload_document")]]
-        if file.media in [MessageMediaType.VIDEO, MessageMediaType.DOCUMENT]:
-            button.append([InlineKeyboardButton("🎥 Video", callback_data = "upload_video")])
-        elif file.media == MessageMediaType.AUDIO:
-            button.append([InlineKeyboardButton("🎵 Audio", callback_data = "upload_audio")])
+        buttons = [
+            [InlineKeyboardButton("📁 Document", callback_data="upload_document")],
+            [InlineKeyboardButton("🎥 Video", callback_data="upload_video")]
+        ]
         await message.reply(
-            text=f"**Select The Output File Type**\n\n**File Name :-** `{new_name}`",
-            reply_to_message_id=file.id,
-            reply_markup=InlineKeyboardMarkup(button)
+            text=f"**Select the Output File Type**\n\n**File Name:** `{new_name}`",
+            reply_markup=InlineKeyboardMarkup(buttons)
 	)
-    user_id = message.chat.id
-    
-    user_details[user_id] = {"file_data": reply_to_message_id}
 
 
 @Client.on_callback_query(filters.regex("upload"))
@@ -234,7 +222,7 @@ async def doc(client, update):
         return await update.message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
-    file_data = user_data["file_data"]
+    file_id = user_data["file_id"]
     episode = extract_episode_number(filename)
     quality = extract_quality(filename)
 	
@@ -304,7 +292,7 @@ async def doc(client, update):
  
     if (media.thumbs or c_thumb):
          if c_thumb:
-             ph_path = await bot.download_media(c_thumb)
+             ph_path = await client.download_media(c_thumb)
              width, height, ph_path = await fix_thumb(ph_path)
          else:
              try:
