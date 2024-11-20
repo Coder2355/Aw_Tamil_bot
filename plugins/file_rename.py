@@ -169,6 +169,7 @@ print(f"Extracted Episode Number: {episode_number}")
 
 
 
+# Handle File Upload and Rename
 @Client.on_message(filters.private & (filters.document | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
@@ -236,17 +237,23 @@ async def upload_file(client, query):
         text=f"⬇️ **Starting download...**\n\n📁 **Filename:** `{new_filename}`"
     )
 
-    # Download File with Progress
-    start_time = time.time()
-    try:
-        downloaded_path = await client.download_media(
-            file_id,
-            file_name=file_path,
-            progress=progress_for_pyrogram,
-            progress_args=("⬇️ **Downloading...**", target_msg, start_time)
-        )
-    except Exception as e:
-        return await target_msg.edit(f"❌ Download failed: `{str(e)}`")
+    # Retry Logic for Downloading
+    for attempt in range(3):  # Retry up to 3 times
+        try:
+            start_time = time.time()
+            downloaded_path = await client.download_media(
+                file_id,
+                file_name=file_path,
+                progress=progress_for_pyrogram,
+                progress_args=("⬇️ **Downloading...**", target_msg, start_time)
+            )
+            # Verify File Size
+            if os.path.exists(downloaded_path) and os.path.getsize(downloaded_path) == user_data["file_size"]:
+                break  # Exit retry loop if successful
+        except Exception as e:
+            if attempt == 2:  # Final attempt failed
+                return await target_msg.edit(f"❌ Download failed: `{str(e)}`")
+            await target_msg.edit(f"⚠️ Retrying download ({attempt + 1}/3)...")
 
     # Notify Completion
     await target_msg.edit("✅ **Download complete! Proceeding to upload...**")
