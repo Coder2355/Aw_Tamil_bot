@@ -226,9 +226,9 @@ async def refunc(client, message):
 
 
 @Client.on_callback_query(filters.regex("upload"))
-async def doc(client, update):  
+async def doc(client, message, update):  
     global TARGET_CHANNEL_ID, custom_name
-    user_id = update.message.chat.id
+    user_id = message.from_user.id
     user_data = user_details.get(user_id)
    
     if not user_data or "filename" not in user_data or "file_id" not in user_data:
@@ -261,7 +261,7 @@ async def doc(client, update):
         return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
-    file = update.message.reply_to_message(file_id)
+    file = message 
     data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
     if not TARGET_CHANNEL_ID:
