@@ -250,8 +250,8 @@ async def doc(client, message):
         os.mkdir("Metadata")
         
     # Extracting necessary information    
-    prefix = await jishubotz.get_prefix(update.message.chat.id)
-    suffix = await jishubotz.get_suffix(update.message.chat.id)
+    prefix = await jishubotz.get_prefix(message.from_user.id)
+    suffix = await jishubotz.get_suffix(message.from_user.id)
     new_name = message.text
     new_filename_ = new_name.split(":-")[1]
 
@@ -276,10 +276,10 @@ async def doc(client, message):
     
 
     # Metadata Adding Code
-    _bool_metadata = await jishubotz.get_metadata(update.message.chat.id) 
+    _bool_metadata = await jishubotz.get_metadata(message.from_user.id) 
     
     if _bool_metadata:
-        metadata = await jishubotz.get_metadata_code(update.message.chat.id)
+        metadata = await jishubotz.get_metadata_code(message.from_user.id)
         metadata_path = f"Metadata/{new_filename}"
         await add_metadata(path, metadata_path, metadata, ms)
     else:
@@ -296,10 +296,10 @@ async def doc(client, message):
         pass
         
     ph_path = None
-    user_id = int(update.message.chat.id) 
+    user_id = int(message.from_user.id) 
     media = getattr(file, file.media.value)
-    c_caption = await jishubotz.get_caption(update.message.chat.id)
-    c_thumb = await jishubotz.get_thumbnail(update.message.chat.id)
+    c_caption = await jishubotz.get_caption(message.from_user.id)
+    c_thumb = await jishubotz.get_thumbnail(message.from_user.id)
 
     if c_caption:
          try:
@@ -323,7 +323,7 @@ async def doc(client, message):
 
 
     await ms.edit("💠 Try To Upload...  ⚡")
-    type = update.data.split("_")[1]
+    type = message.data.split("_")[1]
     try:
         if type == "document":
             await bot.send_document(
