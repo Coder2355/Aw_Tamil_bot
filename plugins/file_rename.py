@@ -173,12 +173,14 @@ print(f"Extracted Episode Number: {episode_number}")
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
     filename = file.file_name
-
+    user_id = message.from_user.id
+    file_id = message.file_id
+	
     if file.file_size > 2000 * 1024 * 1024:
         return await message.reply_text("❌ Sorry, this bot doesn't support files larger than 2GB.")
 
-    user_id = message.chat.id
-    user_details[user_id] = {"filename": filename, "file_id": file.file_id}
+    user_details[user_id]["filename"] = filename
+    user_details[user_id]["file_id"] = file_id
 
     try:
         await message.reply_text(
@@ -235,14 +237,19 @@ async def doc(client, update):
     suffix = await jishubotz.get_suffix(update.message.chat.id)
     new_name = update.message.text
     new_filename_ = new_name.split(":-")[1]
-
+    if file_id in user_details:
+        elapsed_time = (datetime.now() - user_details[file_id]).seconds
+        if elapsed_time < 10:
+            print("File is being ignored as it is currently being renamed or was renamed recently.")
+            return
+	
     try:
         new_filename = add_prefix_suffix(new_filename_, prefix, suffix)
     except Exception as e:
         return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
-    file = update.message.reply_to_message
+    file = message 
     data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
     if not TARGET_CHANNEL_ID:
@@ -251,7 +258,7 @@ async def doc(client, update):
 
     ms = await client.send_message(chat_id=TARGET_CHANNEL_ID, text=data + "🚀 Start Downloading From the Website ⚡")
     try:
-     	path = await client.download_media(file_id, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
+     	path = await client.download_media(message=file, file_name=file_path, progress=progress_for_pyrogram,progress_args=(data, "🚀  Downloading Anime From the Website ⚡", ms, time.time()))                    
     except Exception as e:
      	return await ms.edit(e)
     
