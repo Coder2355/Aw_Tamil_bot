@@ -226,13 +226,13 @@ async def refunc(client, message):
 
 
 @Client.on_callback_query(filters.regex("upload"))
-async def doc(client, message, update):  
+async def doc(client, message):  
     global TARGET_CHANNEL_ID, custom_name
     user_id = message.from_user.id
     user_data = user_details.get(user_id)
    
     if not user_data or "filename" not in user_data or "file_id" not in user_data:
-        return await update.message.edit("❌ Error: Missing file information. Please restart the process.")
+        return await message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
     file_id = user_data["file_id"]
@@ -252,15 +252,15 @@ async def doc(client, message, update):
     # Extracting necessary information    
     prefix = await jishubotz.get_prefix(update.message.chat.id)
     suffix = await jishubotz.get_suffix(update.message.chat.id)
-    new_name = update.message.text
+    new_name = message.text
     new_filename_ = new_name.split(":-")[1]
 
     try:
         new_filename = add_prefix_suffix(new_filename_, prefix, suffix)
     except Exception as e:
-        return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
+        return await message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
     
-    file_path = f"downloads/{update.from_user.id}/{new_filename}"
+    file_path = f"downloads/{message.from_user.id}/{new_filename}"
     file = message 
     data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
