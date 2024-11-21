@@ -168,11 +168,10 @@ episode_number = extract_episode_number(filename)
 print(f"Extracted Episode Number: {episode_number}")
 
 
-
-@Client.on_message(filters.private & (filters.document | filters.video) & filters.user(Config.ADMIN))
+@Client.on_message(filters.private & (filters.document | filters.audio | filters.video) & filters.user(Config.ADMIN))
 async def rename_start(client, message):
     file = getattr(message, message.media.value)
-    filename = file.file_name
+    filename = file.file_name 
     user_id = message.from_user.id
     file_id = file.file_id
 	
@@ -184,36 +183,45 @@ async def rename_start(client, message):
     user_details[user_id]["filename"] = filename
     user_details[user_id]["file_id"] = file_id
 
+
     try:
         await message.reply_text(
             text=f"**Please Enter New Filename...**\n\n**Old File Name:** `{filename}`",
-            reply_to_message_id=message.id,
+            reply_to_message_id=message.id,  
             reply_markup=ForceReply(True)
-        )
-    except Exception as e:
-        await message.reply_text(f"❌ Error: {str(e)}")
+        )       
+        await sleep(30)
+    except FloodWait as e:
+        await sleep(e.value)
+    except:
+        pass
 
 @Client.on_message(filters.private & filters.reply)
 async def refunc(client, message):
     reply_message = message.reply_to_message
-    if reply_message.reply_markup and isinstance(reply_message.reply_markup, ForceReply):
-        user_id = message.chat.id
-        new_name = message.text
-
+    if (reply_message.reply_markup) and isinstance(reply_message.reply_markup, ForceReply):
+        new_name = message.text 
+        await message.delete() 
+        msg = await client.get_messages(message.chat.id, reply_message.id)
+        file = msg.reply_to_message
+        media = getattr(file, file.media.value)
         if not "." in new_name:
-            ext = os.path.splitext(user_details[user_id]["filename"])[-1]
-            new_name = new_name + ext
-
-        user_details[user_id]["new_name"] = new_name
+            if "." in media.file_name:
+                extn = media.file_name.rsplit('.', 1)[-1]
+            else:
+                extn = "mkv"
+            new_name = new_name + "." + extn
         await reply_message.delete()
 
-        buttons = [
-            [InlineKeyboardButton("📁 Document", callback_data="upload_document")],
-            [InlineKeyboardButton("🎥 Video", callback_data="upload_video")]
-        ]
+        button = [[InlineKeyboardButton("📁 Document",callback_data = "upload_document")]]
+        if file.media in [MessageMediaType.VIDEO, MessageMediaType.DOCUMENT]:
+            button.append([InlineKeyboardButton("🎥 Video", callback_data = "upload_video")])
+        elif file.media == MessageMediaType.AUDIO:
+            button.append([InlineKeyboardButton("🎵 Audio", callback_data = "upload_audio")])
         await message.reply(
-            text=f"**Select the Output File Type**\n\n**File Name:** `{new_name}`",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            text=f"**Select The Output File Type**\n\n**File Name :-** `{new_name}`",
+            reply_to_message_id=file.id,
+            reply_markup=InlineKeyboardMarkup(button)
 	)
 
 
@@ -222,11 +230,18 @@ async def doc(client, update):
     global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
+   
     if not user_data or "filename" not in user_data or "file_id" not in user_data:
         return await update.message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
     file_id = user_data["file_id"]
+    
+    if file_id in user_details:
+        elapsed_time = (datetime.now() - user_details[file_id]).seconds
+        if elapsed_time < 10:
+            print("File is being ignored as it is currently being renamed or was renamed recently.")
+            return
     episode = extract_episode_number(filename)
     quality = extract_quality(filename)
 	
@@ -238,24 +253,15 @@ async def doc(client, update):
     prefix = await jishubotz.get_prefix(update.message.chat.id)
     suffix = await jishubotz.get_suffix(update.message.chat.id)
     new_name = update.message.text
-    if ":-" in new_name and len(new_name.split(":-")) > 1:
-        new_filename_ = new_name.split(":-")[1]
-    else:
-        return await update.message.edit("❌ Error: Invalid filename format. Ensure the name contains ':-'.")
-    
-    if file_id in user_details:
-        elapsed_time = (datetime.now() - user_details[file_id]).seconds
-        if elapsed_time < 10:
-            print("File is being ignored as it is currently being renamed or was renamed recently.")
-            return
-	
+    new_filename_ = new_name.split(":-")[1]
+
     try:
         new_filename = add_prefix_suffix(new_filename_, prefix, suffix)
     except Exception as e:
         return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
-    file = message 
+    file = update.message
     data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
     if not TARGET_CHANNEL_ID:
@@ -305,7 +311,7 @@ async def doc(client, update):
  
     if (media.thumbs or c_thumb):
          if c_thumb:
-             ph_path = await client.download_media(c_thumb)
+             ph_path = await bot.download_media(c_thumb)
              width, height, ph_path = await fix_thumb(ph_path)
          else:
              try:
