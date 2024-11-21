@@ -178,6 +178,8 @@ async def rename_start(client, message):
 	
     if file.file_size > 2000 * 1024 * 1024:
         return await message.reply_text("❌ Sorry, this bot doesn't support files larger than 2GB.")
+    if user_id not in user_details:
+        user_details[user_id] = {}
 
     user_details[user_id]["filename"] = filename
     user_details[user_id]["file_id"] = file_id
@@ -220,7 +222,7 @@ async def doc(client, update):
     global TARGET_CHANNEL_ID, custom_name
     user_id = update.message.chat.id
     user_data = user_details.get(user_id)
-    if not user_data or "filename" not in user_data or "file_data" not in user_data:
+    if not user_data or "filename" not in user_data or "file_id" not in user_data:
         return await update.message.edit("❌ Error: Missing file information. Please restart the process.")
 
     filename = user_data["filename"]
