@@ -261,7 +261,7 @@ async def doc(client, update):
         return await update.message.edit(f"Something Went Wrong Can't Able To Set Prefix Or Suffix 🥺 \n\n**Contact My Creator :** @CallAdminRobot\n\n**Error :** `{e}`")
     
     file_path = f"downloads/{update.from_user.id}/{new_filename}"
-    file = update.message
+    file = update.message.reply_to_message(file_id)
     data = f" {custom_name} -S01 - EP{episode} - {quality} Tamil "
 
     if not TARGET_CHANNEL_ID:
